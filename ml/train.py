@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train a transparent dropout-risk classroom demo model on UCI dataset #697.
+"""Train a transparent dropout-risk classroom model on UCI dataset #697.
 
 Outcome is Dropout vs. Enrolled/Graduate, using only first-semester data and
 admission grade, to prevent leakage from later academic outcomes.

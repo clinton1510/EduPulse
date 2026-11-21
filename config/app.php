@@ -20,6 +20,10 @@ try {
 function h($value): string { return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function auth(): array {
     if (empty($_SESSION['user'])) { header('Location: login.php'); exit; }
+    $name = $GLOBALS['db']->prepare('SELECT full_name FROM users WHERE id = ?');
+    $name->execute([$_SESSION['user']['id']]);
+    $currentName = $name->fetchColumn();
+    if ($currentName !== false) $_SESSION['user']['name'] = $currentName;
     return $_SESSION['user'];
 }
 function csrf(): string {

@@ -11,14 +11,21 @@ foreach (explode(';', file_get_contents(__DIR__.'/sql/schema.sql')) as $sql) {
     if (trim($sql)) $pdo->exec($sql);
 }
 if ((int)$pdo->query('SELECT COUNT(*) FROM academic_records')->fetchColumn() > 0) {
-    exit("Database already contains demo records. Skipping seed.\n");
+    exit("Database already contains sample records. Skipping seed.\n");
 }
+$pdo->beginTransaction();
 $departments = ['Computer Science', 'Information Technology', 'Business Administration'];
 $years = ['2024-2025','2025-2026','2026-2027'];
 $semesters = ['1st Semester','2nd Semester'];
 $facultyStmt = $pdo->prepare('INSERT INTO faculty (display_name,department) VALUES (?,?)');
 $names = ['Dr. A. Reyes','Prof. J. Cruz','Prof. L. Santos','Dr. C. Lim','Prof. R. Garcia','Prof. M. Flores','Dr. S. Ramos','Prof. K. Tan','Prof. V. Dizon'];
-foreach ($names as $i => $name) $facultyStmt->execute([$name,$departments[intdiv($i,3)]]);
+$facultyIds = [];
+foreach ($names as $i => $name) {
+ $find=$pdo->prepare('SELECT id FROM faculty WHERE display_name=? AND department=? ORDER BY id LIMIT 1');
+ $find->execute([$name,$departments[intdiv($i,3)]]); $id=$find->fetchColumn();
+ if (!$id) { $facultyStmt->execute([$name,$departments[intdiv($i,3)]]); $id=$pdo->lastInsertId(); }
+ $facultyIds[]=(int)$id;
+}
 $record = $pdo->prepare('INSERT INTO academic_records (student_code,academic_year,semester,department,units_attempted,units_passed,avg_grade,attendance_rate,grade_completed) VALUES (?,?,?,?,?,?,?,?,?)');
 $eval = $pdo->prepare('INSERT INTO sete_summary (faculty_id,academic_year,semester,department,criterion,score_total,response_count,invitations) VALUES (?,?,?,?,?,?,?,?)');
 $criteria = ['Clarity','Engagement','Assessment','Support'];
@@ -29,19 +36,20 @@ foreach ($years as $yi=>$year) foreach ($semesters as $si=>$sem) {
       $att = mt_rand(58,100);
       $grade = round(max(1.0,min(5.0, 1.15 + (100-$att)*0.049 + mt_rand(0,130)/100)),2);
       $passUnits = ($grade <= 3.0) ? 18 : mt_rand(6,15);
-      $record->execute([sprintf('DEMO-%d-%d-%03d',$yi,$di,$j),$year,$sem,$dept,18,$passUnits,$grade,$att,mt_rand(1,100)>8?1:0]);
+      $record->execute([sprintf('STU-%d-%d-%03d',$yi,$di,$j),$year,$sem,$dept,18,$passUnits,$grade,$att,mt_rand(1,100)>8?1:0]);
     }
     for ($f=($di*3)+1;$f<=($di*3)+3;$f++) {
       $invites = 60 + mt_rand(0,30);
       $responses = (int)floor($invites * mt_rand(42,91)/100);
       foreach ($criteria as $cidx=>$criterion) {
         $avg = max(2.2,min(4.85,3.4 + $yi*.1 + $si*.06 + ($di===1?-.1:.1) + mt_rand(-50,50)/100));
-        $eval->execute([$f,$year,$sem,$dept,$criterion,round($avg*$responses,2),$responses,$invites]);
+        $eval->execute([$facultyIds[$f-1],$year,$sem,$dept,$criterion,round($avg*$responses,2),$responses,$invites]);
       }
     }
  }
 }
-$users = $pdo->prepare('INSERT INTO users (full_name,email,password_hash,role,department,faculty_id) VALUES (?,?,?,?,?,?)');
-$users->execute(['Demo Program Chair','chair@edupulse.local',password_hash('ChangeMe123!',PASSWORD_DEFAULT),'chair',null,null]);
-$users->execute(['Demo Faculty Member','faculty@edupulse.local',password_hash('ChangeMe123!',PASSWORD_DEFAULT),'faculty','Computer Science',1]);
-echo "EduPulse installed with synthetic demo data.\nDemo logins: chair@edupulse.local and faculty@edupulse.local\nInitial demo password: ChangeMe123! (change/remove before deployment).\n";
+$users = $pdo->prepare('INSERT INTO users (full_name,email,password_hash,role,department,faculty_id) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE email=VALUES(email)');
+$users->execute(['Program Chair','chair@edupulse.local',password_hash('ChangeMe123!',PASSWORD_DEFAULT),'chair',null,null]);
+$users->execute(['Faculty Member','faculty@edupulse.local',password_hash('ChangeMe123!',PASSWORD_DEFAULT),'faculty','Computer Science',$facultyIds[0]]);
+$pdo->commit();
+echo "EduPulse installed with synthetic data.\nLocal accounts: chair@edupulse.local and faculty@edupulse.local\nInitial password: ChangeMe123! (change/remove before deployment).\n";

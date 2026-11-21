@@ -1,13 +1,13 @@
 # EduPulse — Academic Intelligence & Teaching Effectiveness
 
-A PHP + MySQL university analytics classroom prototype for BAT 405. This project demonstrates a **proposed**, not existing, analytics integration of Student/Faculty Portal data and Student Evaluation of Teaching Effectiveness (SETE).
+A PHP + MySQL university analytics classroom prototype for BAT 405. This project illustrates a **proposed**, not existing, analytics integration of Student/Faculty Portal data and Student Evaluation of Teaching Effectiveness (SETE).
 
 ## Features
 - Five KPI cards: course pass rate, students at risk, teaching effectiveness, SETE response rate, grade completion
 - Three charts: semester trends, departmental SETE scores, and at-risk distribution
 - Academic year, semester and department filters
 - Warnings, management suggestions and aggregate CSV export
-- Program Chair and Faculty demo logins
+- Program Chair and Faculty local logins
 - MySQL sample data installer, responsive design
 
 ## Run on XAMPP (Windows)
@@ -17,7 +17,7 @@ A PHP + MySQL university analytics classroom prototype for BAT 405. This project
 3. Run `C:\xampp\php\php.exe setup.php` in the project folder.
 4. Visit `http://localhost/edupulse/login.php`.
 
-Demo login (local only): `chair@edupulse.local`, password `ChangeMe123!`; faculty login `faculty@edupulse.local` with the same password.
+Local login (local only): `chair@edupulse.local`, password `ChangeMe123!`; faculty login `faculty@edupulse.local` with the same password.
 
 Requirements: PHP 8.1+ with PDO MySQL, MySQL/MariaDB, Apache. Chart.js and fonts are fetched from CDNs.
 
@@ -43,7 +43,7 @@ These are classroom assumptions, **not** official university thresholds. Data is
 - Part IV: Rule-based student support flags; proposed predictive modeling requires separate documented workflow and evaluation metrics.
 - Part V: Functional/integration, usability, privacy and security testing recommended prior to real deployment.
 
-**For educational demonstration only. Not production-ready.** Change/remove demo credentials before deployment, and conduct security review before using sensitive data.
+**For educational example only. Not production-ready.** Change/remove local credentials before deployment, and conduct security review before using sensitive data.
 
 ## Predictive analytics extension
 
@@ -51,4 +51,4 @@ The **ML Risk Explorer** is available from the dashboard or at `predict.php`. It
 
 Run `python -m pip install -r ml/requirements.txt` and `python ml/train.py` to produce `model/dropout_logistic.json` and `model/metrics.json`, or use the [GitHub Actions training workflow](https://github.com/clinton1510/EduPulse/actions/workflows/train-model.yml). See `ml/README.md` for methodology and limitations.
 
-This external model is a separate research demonstration, **not** a model validated on EduPulse's synthetic PHP database or on Philippine university students. PHP runs inference directly from a trained JSON model; it does not train the model itself.
+This external model is a separate research example, **not** a model validated on EduPulse's synthetic PHP database or on Philippine university students. PHP runs inference directly from a trained JSON model; it does not train the model itself.

@@ -4,7 +4,7 @@ $user = auth();
 $years = array_column(queryAll($db,'SELECT DISTINCT academic_year FROM academic_records'),'academic_year');
 $sems = ['1st Semester','2nd Semester'];
 $depts = array_column(queryAll($db,'SELECT DISTINCT department FROM academic_records'),'department');
-$year = in_array($_GET['year']??'', $years,true)?$_GET['year']:$years[0];
+$year = in_array($_GET['year']??'', $years,true)?$_GET['year']: ($years[0] ?? date('Y').'-'.(date('Y')+1));
 $sem = in_array($_GET['semester']??'', $sems,true)?$_GET['semester']:$sems[0];
 $dept = in_array($_GET['department']??'', $depts,true)?$_GET['department']:'All Departments';
 if ($user['role']==='faculty') $dept=$user['department'];
@@ -17,7 +17,7 @@ $s=queryAll($db,"SELECT ROUND(SUM(score_total)/NULLIF(SUM(response_count),0),2) 
 $r=queryAll($db,"SELECT ROUND(100*SUM(response_count)/NULLIF(SUM(invitations),0),1) rate FROM sete_summary WHERE $evalWhere AND criterion='Clarity'",$evalParams)[0];
 header('Content-Type: text/csv; charset=UTF-8'); header('Content-Disposition: attachment; filename="edupulse-aggregate-report.csv"');
 $out=fopen('php://output','w');
-fputcsv($out,['EduPulse Aggregate KPI Report - Synthetic Demo Data']);
+fputcsv($out,['EduPulse Aggregate KPI Report - Synthetic Data']);
 fputcsv($out,['Academic Year',$year]);fputcsv($out,['Semester',$sem]);fputcsv($out,['Department',$dept]);
 fputcsv($out,['KPI','Value','Proposed Target']);
 foreach([['Course Pass Rate',$a['pass_rate'].'%','>=85%'],['Students at Risk',$a['at_risk'].'%','<=15%'],['Teaching Effectiveness',$s['sete_score'].'/5','>=4.0/5'],['SETE Response Rate',$r['rate'].'%','>=70%'],['Grade Completion',$a['completion_rate'].'%','>=95%']] as $row)fputcsv($out,$row);
