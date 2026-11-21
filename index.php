@@ -1,0 +1,57 @@
+<?php
+require __DIR__ . '/config/app.php';
+$user = auth();
+$years = array_column(queryAll($db, 'SELECT DISTINCT academic_year FROM academic_records ORDER BY academic_year DESC'), 'academic_year');
+$semesters = ['1st Semester','2nd Semester'];
+$departments = array_column(queryAll($db,'SELECT DISTINCT department FROM academic_records ORDER BY department'),'department');
+$year = in_array($_GET['year'] ?? '', $years, true) ? $_GET['year'] : $years[0];
+$sem = in_array($_GET['semester'] ?? '', $semesters, true) ? $_GET['semester'] : '1st Semester';
+$dept = in_array($_GET['department'] ?? '', $departments, true) ? $_GET['department'] : 'All Departments';
+if ($user['role'] === 'faculty') $dept = $user['department'];
+$ap = [$year, $sem];
+$ac = 'academic_year = ? AND semester = ?';
+$ep = [$year, $sem];
+$ec = 'academic_year = ? AND semester = ?';
+if ($dept !== 'All Departments') { $ac .= ' AND department = ?'; $ec .= ' AND department = ?'; $ap[]=$dept; $ep[]=$dept; }
+if ($user['role'] === 'faculty') { $ec .= ' AND faculty_id = ?'; $ep[]=$user['faculty_id']; }
+$academic = queryAll($db, "SELECT COUNT(*) students, ROUND(100*SUM(units_passed)/NULLIF(SUM(units_attempted),0),1) pass_rate, ROUND(100*SUM(CASE WHEN avg_grade > 3 OR attendance_rate < 75 THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) risk_rate, ROUND(100*AVG(grade_completed),1) completion_rate FROM academic_records WHERE $ac", $ap)[0];
+$sete = queryAll($db, "SELECT ROUND(SUM(score_total)/NULLIF(SUM(response_count),0),2) sete_score FROM sete_summary WHERE $ec", $ep)[0];
+$participationFilter = $ec . " AND criterion = 'Clarity'";
+$participation = queryAll($db, "SELECT ROUND(100*SUM(response_count)/NULLIF(SUM(invitations),0),1) response_rate, SUM(response_count) respondents FROM sete_summary WHERE $participationFilter",$ep)[0];
+$metrics = [
+ ['label'=>'Course Pass Rate','value'=>($academic['pass_rate']??0).'%','target'=>'Target ≥ 85%','icon'=>'✓','low'=>($academic['pass_rate']??0)<85],
+ ['label'=>'Students at Risk','value'=>($academic['risk_rate']??0).'%','target'=>'Target ≤ 15%','icon'=>'!','low'=>($academic['risk_rate']??0)>15],
+ ['label'=>'Teaching Effectiveness','value'=>($sete['sete_score']??0).' / 5','target'=>'Target ≥ 4.0 / 5','icon'=>'★','low'=>($sete['sete_score']??0)<4],
+ ['label'=>'SETE Response Rate','value'=>($participation['response_rate']??0).'%','target'=>'Target ≥ 70%','icon'=>'↗','low'=>($participation['response_rate']??0)<70],
+ ['label'=>'Grade Completion','value'=>($academic['completion_rate']??0).'%','target'=>'Target ≥ 95%','icon'=>'▤','low'=>($academic['completion_rate']??0)<95],
+];
+$alerts = [];
+foreach ($metrics as $m) if ($m['low']) $alerts[] = $m['label'].' is outside its proposed target (' . $m['value'] . ').';
+$trendArgs = [];
+$trendClause = '1=1';
+if ($dept !== 'All Departments') { $trendClause .= ' AND department = ?'; $trendArgs[] = $dept; }
+$gradeTrend = queryAll($db, "SELECT academic_year,semester,ROUND(100*SUM(units_passed)/NULLIF(SUM(units_attempted),0),1) value FROM academic_records WHERE $trendClause GROUP BY academic_year,semester ORDER BY academic_year,semester", $trendArgs);
+$seteTrendClause = $trendClause;
+$seteTrendArgs = $trendArgs;
+if ($user['role'] === 'faculty') {$seteTrendClause .= ' AND faculty_id = ?'; $seteTrendArgs[]=$user['faculty_id'];}
+$seteTrend = queryAll($db, "SELECT academic_year,semester,ROUND(SUM(score_total)/NULLIF(SUM(response_count),0),2) value FROM sete_summary WHERE $seteTrendClause GROUP BY academic_year,semester ORDER BY academic_year,semester", $seteTrendArgs);
+$deptScore = queryAll($db, "SELECT department, ROUND(SUM(score_total)/NULLIF(SUM(response_count),0),2) value FROM sete_summary WHERE $ec GROUP BY department ORDER BY department",$ep);
+$riskDept = queryAll($db, "SELECT department, SUM(CASE WHEN avg_grade > 3 OR attendance_rate < 75 THEN 1 ELSE 0 END) value FROM academic_records WHERE $ac GROUP BY department ORDER BY department",$ap);
+function js($value): string { return json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR); }
+$periodLabels = array_map(fn($row) => $row['academic_year'].' · '.str_replace(' Semester','', $row['semester']),$gradeTrend);
+$gradeValues = array_map(fn($row) => (float)$row['value'],$gradeTrend);
+$seteIndex=[]; foreach($seteTrend as $r) $seteIndex[$r['academic_year'].'|'.$r['semester']] = (float)$r['value'];
+$seteValues = array_map(fn($r)=>$seteIndex[$r['academic_year'].'|'.$r['semester']] ?? null,$gradeTrend);
+?>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EduPulse · Intelligence Dashboard</title><link rel="stylesheet" href="assets/style.css"><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script><script src="assets/dashboard.js" defer></script></head>
+<body><div class="shell"><aside class="sidebar"><div class="brand"><span class="brand-mark">◈</span><span>Edu<span class="brand-accent">Pulse</span></span></div><div class="side-caption">WORKSPACE</div><div class="nav-active">◫ &nbsp; Intelligence Overview</div><div class="side-caption side-gap">ABOUT THIS PROJECT</div><div class="side-note">Proposed academic analytics integration, built with PHP + MySQL.</div><div class="sidebar-bottom"><div class="mini-avatar"><?=h(strtoupper(substr($user['name'],0,1)))?></div><div><strong><?=h($user['name'])?></strong><small><?=h($user['role']==='chair'?'Program Chair':'Faculty Member')?></small></div></div></aside>
+<main class="main"><header class="topbar"><div><div class="eyebrow">ACADEMIC DECISION INTELLIGENCE</div><h1>Intelligence Overview <span class="spark">✦</span></h1><p class="subtitle">A clear pulse on academic performance and teaching effectiveness.</p></div><form method="post" action="logout.php"><input type="hidden" name="csrf" value="<?=h(csrf())?>"><button class="btn-logout" type="submit">Sign out ↗</button></form></header>
+<section class="filter-panel"><div><strong>Analytics Scope</strong><p>Explore data by academic period and department.</p></div><form class="filters" method="get"><label>ACADEMIC YEAR<select name="year"><?php foreach($years as $v):?><option value="<?=h($v)?>" <?=$year===$v?'selected':''?>><?=h($v)?></option><?php endforeach;?></select></label><label>SEMESTER<select name="semester"><?php foreach($semesters as $v):?><option value="<?=h($v)?>" <?=$sem===$v?'selected':''?>><?=h($v)?></option><?php endforeach;?></select></label><?php if ($user['role'] === 'chair'): ?><label>DEPARTMENT<select name="department"><option>All Departments</option><?php foreach($departments as $v):?><option value="<?=h($v)?>" <?=$dept===$v?'selected':''?>><?=h($v)?></option><?php endforeach;?></select></label><?php endif;?><button class="btn-primary" type="submit">Apply Filters</button></form></section>
+<div class="section-heading"><div><span class="section-label">01 / KEY PERFORMANCE INDICATORS</span><h2>At a glance</h2></div><span class="demo-pill">SYNTHETIC DEMO DATA</span></div>
+<section class="kpi-grid"><?php foreach($metrics as $m):?><article class="kpi-card"><div class="kpi-head"><span><?=h($m['label'])?></span><span class="kpi-icon"><?=h($m['icon'])?></span></div><div class="kpi-value"><?=h($m['value'])?></div><div class="kpi-foot"><span class="status <?=$m['low']?'warning':'ok'?>"><?=$m['low']?'Needs attention':'On target'?></span><span><?=h($m['target'])?></span></div></article><?php endforeach;?></section>
+<div class="section-heading section-space"><div><span class="section-label">02 / VISUAL ANALYTICS</span><h2>Patterns that matter</h2></div><span class="muted small">Period: <?=h($year)?> · <?=h($sem)?></span></div>
+<section class="charts-grid"><article class="chart-card wide"><div class="chart-title"><div><h3>Performance across semesters</h3><p>Course pass rate (%) and SETE average (/5) over time</p></div><span>01</span></div><div class="chart-area"><canvas id="trendChart" aria-label="Academic and teaching trend chart" role="img"></canvas></div></article><article class="chart-card"><div class="chart-title"><div><h3>Teaching effectiveness</h3><p>Average SETE score by department</p></div><span>02</span></div><div class="chart-area"><canvas id="deptChart" aria-label="SETE department chart" role="img"></canvas></div></article><article class="chart-card"><div class="chart-title"><div><h3>Academic support needs</h3><p>Students flagged for support by department</p></div><span>03</span></div><div class="chart-area"><canvas id="riskChart" aria-label="At-risk students chart" role="img"></canvas></div></article></section>
+<section class="lower-grid"><article class="insight-card"><div class="section-label">03 / EARLY WARNING SYSTEM</div><h2>Signals & alerts</h2><?php if (!$alerts):?><p class="success-message">✓ All five KPIs meet the proposed targets for the selected scope.</p><?php else:?><?php foreach($alerts as $alert):?><div class="alert"><span class="alert-dot">!</span><span><?=h($alert)?></span></div><?php endforeach;?><?php endif;?><p class="hint">Thresholds are proposals for classroom use and require university approval before operational use.</p></article><article class="insight-card"><div class="section-label">04 / DECISION SUPPORT</div><h2>Recommended next steps</h2><ul class="recommendations"><?php if(($academic['risk_rate']??0)>15):?><li>Offer targeted tutoring and attendance check-ins to students needing support.</li><?php endif;?><?php if(($participation['response_rate']??0)<70):?><li>Improve voluntary SETE participation through neutral, accessible reminders.</li><?php endif;?><?php if(($sete['sete_score']??0)<4):?><li>Review teaching support needs alongside peer observations and course context.</li><?php endif;?><?php if(($academic['completion_rate']??0)<95):?><li>Coordinate a grade submission follow-up with relevant academic offices.</li><?php endif;?><?php if(!$alerts):?><li>Continue monitoring trends and share effective practices across departments.</li><?php endif;?></ul><a class="export-link" href="export.php?<?=h(http_build_query(['year'=>$year,'semester'=>$sem,'department'=>$dept]))?>">↓ Export aggregate KPI report (CSV)</a></article></section>
+<footer>EduPulse • Prototype / Educational Use &nbsp;·&nbsp; Aggregated teaching results and synthetic student records &nbsp;·&nbsp; SETE is never a sole personnel measure</footer></main></div>
+<script type="application/json" id="chartData"><?=js(['periods'=>$periodLabels,'passRates'=>$gradeValues,'seteScores'=>$seteValues,'departments'=>array_column($deptScore,'department'),'departmentScores'=>array_map('floatval',array_column($deptScore,'value')),'riskDepartments'=>array_column($riskDept,'department'),'riskValues'=>array_map('intval',array_column($riskDept,'value'))])?></script>
+</body></html>
