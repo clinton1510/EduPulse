@@ -1,1 +1,46 @@
-# EduPulse
+# EduPulse — Academic Intelligence & Teaching Effectiveness
+
+A PHP + MySQL university analytics classroom prototype for BAT 405. This project demonstrates a **proposed**, not existing, analytics integration of Student/Faculty Portal data and Student Evaluation of Teaching Effectiveness (SETE).
+
+## Features
+- Five KPI cards: course pass rate, students at risk, teaching effectiveness, SETE response rate, grade completion
+- Three charts: semester trends, departmental SETE scores, and at-risk distribution
+- Academic year, semester and department filters
+- Warnings, management suggestions and aggregate CSV export
+- Program Chair and Faculty demo logins
+- MySQL sample data installer, responsive design
+
+## Run on XAMPP (Windows)
+
+1. Clone to `C:\xampp\htdocs\edupulse`.
+2. Start Apache and MySQL in XAMPP.
+3. Run `C:\xampp\php\php.exe setup.php` in the project folder.
+4. Visit `http://localhost/edupulse/login.php`.
+
+Demo login (local only): `chair@edupulse.local`, password `ChangeMe123!`; faculty login `faculty@edupulse.local` with the same password.
+
+Requirements: PHP 8.1+ with PDO MySQL, MySQL/MariaDB, Apache. Chart.js and fonts are fetched from CDNs.
+
+Database settings use `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` environment variables or local XAMPP defaults in `config/database.php`.
+
+## Proposed KPI targets
+
+| KPI | Target |
+| --- | --- |
+| Course pass rate (passed/attempted course units) | ≥85% |
+| At-risk academic records (grade >3 or attendance <75%) | ≤15% |
+| SETE weighted mean | ≥4/5 |
+| SETE response rate | ≥70% |
+| Grade completion | ≥95% |
+
+These are classroom assumptions, **not** official university thresholds. Data is fully synthetic. The system provides descriptive/diagnostic analytics, not a trained predictive model. SETE is only one of several measures of teaching effectiveness and should never solely determine personnel actions.
+
+## Case study alignment
+
+- Part I: Separate student/faculty portal and SETE source models, with proposed analytics integration.
+- Part II: Five measurable KPIs with management thresholds.
+- Part III: One-page Program Chair dashboard, three visualizations, filters, warnings.
+- Part IV: Rule-based student support flags; proposed predictive modeling requires separate documented workflow and evaluation metrics.
+- Part V: Functional/integration, usability, privacy and security testing recommended prior to real deployment.
+
+**For educational demonstration only. Not production-ready.** Change/remove demo credentials before deployment, and conduct security review before using sensitive data.
