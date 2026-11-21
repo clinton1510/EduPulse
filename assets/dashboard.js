@@ -2,7 +2,7 @@
 'use strict';
 (() => {
  const source=document.getElementById('chartData');if(!source)return;
- const d=JSON.parse(source.textContent),colors=['#a3233c','#168b82','#d59936','#687dab','#b873a4'];
+ const d=JSON.parse(source.textContent),colors=['#4799d2','#168b82','#d59936','#687dab','#b873a4'];
  const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function chart(id,content,label,height=300){const canvas=document.getElementById(id);if(!canvas)return;canvas.outerHTML=`<svg viewBox="0 0 720 ${height}" role="img" aria-label="${esc(label)}" style="width:100%;height:100%;font:13px system-ui"><title>${esc(label)}</title>${content}</svg>`;}
  function empty(id){chart(id,'<text x="360" y="145" text-anchor="middle" fill="#707889">No data for the selected scope</text>','No data');}
