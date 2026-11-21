@@ -44,3 +44,11 @@ These are classroom assumptions, **not** official university thresholds. Data is
 - Part V: Functional/integration, usability, privacy and security testing recommended prior to real deployment.
 
 **For educational demonstration only. Not production-ready.** Change/remove demo credentials before deployment, and conduct security review before using sensitive data.
+
+## Predictive analytics extension
+
+The **ML Risk Explorer** is available from the dashboard or at `predict.php`. It uses a logistic regression model trained on the external [UCI higher-education dropout dataset](https://archive.ics.uci.edu/dataset/697/predict+students+dropout+and+academic+success) (CC BY 4.0). Training uses first-semester academic features and an 80/20 stratified train/test split; evaluation reports ROC-AUC, recall, precision, and accuracy.
+
+Run `python -m pip install -r ml/requirements.txt` and `python ml/train.py` to produce `model/dropout_logistic.json` and `model/metrics.json`, or use the [GitHub Actions training workflow](https://github.com/clinton1510/EduPulse/actions/workflows/train-model.yml). See `ml/README.md` for methodology and limitations.
+
+This external model is a separate research demonstration, **not** a model validated on EduPulse's synthetic PHP database or on Philippine university students. PHP runs inference directly from a trained JSON model; it does not train the model itself.
