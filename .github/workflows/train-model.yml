@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'ml/train.py'
+      - 'ml/requirements.txt'
       - '.github/workflows/train-model.yml'
 permissions:
   contents: write
