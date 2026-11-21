@@ -1,0 +1,35 @@
+name: Train student outcome model
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ml/train.py'
+      - '.github/workflows/train-model.yml'
+permissions:
+  contents: write
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install model dependencies
+        run: python -m pip install --disable-pip-version-check -r ml/requirements.txt
+      - name: Download UCI data and train model
+        run: python ml/train.py
+      - name: Commit trained model and holdout report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add model/dropout_logistic.json model/metrics.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Train UCI 697 dropout classifier and report metrics"
+            git push
+          fi
+      - name: Archive evaluation results
+        uses: actions/upload-artifact@v4
+        with:
+          name: edupulse-trained-model
+          path: model/
