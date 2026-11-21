@@ -1,4 +1,8 @@
 <?php
+date_default_timezone_set('Asia/Manila');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: same-origin');
+header('Cache-Control: no-store');
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start([
         'cookie_httponly' => true,
@@ -19,20 +23,18 @@ try {
 }
 function h($value): string { return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function auth(): array {
-    if (empty($_SESSION['user'])) { header('Location: login.php'); exit; }
-    $name = $GLOBALS['db']->prepare('SELECT full_name FROM users WHERE id = ?');
-    $name->execute([$_SESSION['user']['id']]);
-    $currentName = $name->fetchColumn();
-    if ($currentName !== false) $_SESSION['user']['name'] = $currentName;
-    return $_SESSION['user'];
+    // Compatibility helper: public workspace identity is a role label, never authorization.
+    return ['name'=>'Program Chair Workspace','role'=>'public','department'=>null,'faculty_id'=>null];
 }
 function csrf(): string {
     if (empty($_SESSION['csrf'])) $_SESSION['csrf'] = bin2hex(random_bytes(32));
     return $_SESSION['csrf'];
 }
 function csrf_check(): void {
-    if (!hash_equals($_SESSION['csrf'] ?? '', $_POST['csrf'] ?? '')) { http_response_code(403); exit('Invalid CSRF token'); }
+    if (!hash_equals($_SESSION['csrf'] ?? '', is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : '')) { http_response_code(403); exit('Invalid CSRF token'); }
 }
 function queryAll(PDO $db, string $sql, array $params = []): array {
     $stmt = $db->prepare($sql); $stmt->execute($params); return $stmt->fetchAll();
 }
+function js($value): string { return json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR); }
+function scalarParam(array $source,string $key,string $default=''): string { return isset($source[$key]) && is_scalar($source[$key]) ? (string)$source[$key] : $default; }

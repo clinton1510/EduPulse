@@ -1,6 +1,8 @@
 <?php
 require __DIR__.'/config/app.php';
-$user=auth();
+require __DIR__.'/lib/analytics.php';
+require __DIR__.'/lib/ui.php';
+$f=filters($db,$_GET);
 $path=__DIR__.'/model/dropout_logistic.json';
 $metricsPath=__DIR__.'/model/metrics.json';
 $model=is_file($path)?json_decode(file_get_contents($path),true):null;
@@ -13,7 +15,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  if(!$model){$error='Model is not yet trained. See the README for training instructions.';}
  else {
   foreach($values as $name=>$unused){
-   $raw=$_POST['feature'][$name]??null;
+   $features=is_array($_POST['feature']??null)?$_POST['feature']:[];
+   $raw=$features[$name]??null;
    if(!is_scalar($raw)||!is_numeric($raw)){$error='Enter valid numeric inputs.';break;}
    $number=(float)$raw;
    if(!is_finite($number)||$number<$bounds[$name][0]||$number>$bounds[$name][1]){$error='Input outside the allowed range.';break;}
@@ -27,16 +30,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   }
  }
 }
+workspaceStart('predict','ML Risk Explorer',$f);
 ?>
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EduPulse · AI Risk Explorer</title><link rel="stylesheet" href="assets/style.css"><script src="assets/interactions.js" defer></script></head>
-<body class="login-page"><main class="login-card" style="width:min(650px,94vw)"><div class="brand brand-login"><span class="brand-mark">◈</span><span>Edu<span class="brand-accent">Pulse</span></span></div><p><a href="index.php" class="export-link">← Dashboard</a></p><div class="eyebrow">RESEARCH MODEL · EDUCATIONAL USE</div><h1>Student Outcome Risk Explorer</h1><p class="muted">Try a trained logistic regression model built from a public higher-education dataset. Input values represent an illustrative student profile, not a real person.</p>
-<?php if(!$model):?><div class="alert">No trained model has been generated yet. Run <code>python ml/train.py</code> on a machine with internet access and commit the files in <code>model/</code>, or run the GitHub training workflow.</div><?php else:?>
-<form method="post"><input type="hidden" name="csrf" value="<?=h(csrf())?>">
-<?php foreach($values as $name=>$value):?><label><?=h($name)?> (<?=h($bounds[$name][0])?>–<?=h($bounds[$name][1])?>)<input type="number" step="any" name="feature[<?=h($name)?>]" value="<?=h($value)?>" min="<?=h($bounds[$name][0])?>" max="<?=h($bounds[$name][1])?>" required></label><?php endforeach;?>
-<button type="submit" class="btn-primary">Calculate dropout risk estimate</button></form>
-<?php if($error):?><p class="error" role="alert" tabindex="-1"><?=h($error)?></p><?php endif;?>
-<?php if($prediction!==null):?><div class="filter-panel prediction-result" role="status" tabindex="-1" style="margin-top:20px;display:block"><div class="section-label">MODEL OUTPUT</div><div class="kpi-value"><?=h(number_format($prediction*100,1))?>%</div><strong><?=h($prediction>=.5?'Higher model-estimated dropout likelihood':'Lower model-estimated dropout likelihood')?></strong><p class="muted">Classification cutoff: 50%. This score is not a clinical or institution-calibrated probability and does not establish an individual's future.</p></div><?php endif;?>
-<?php if($metrics):?><p class="hint">Holdout ROC-AUC: <?=h($metrics['roc_auc'])?> · Recall (dropout): <?=h($metrics['dropout_recall'])?> · Test records: <?=h($metrics['test_count'])?></p><?php endif;?>
+<p class="notice">External research model ? Educational use. This estimate is separate from the rule-based academic flags on the CICS dashboard and never runs automatically on local records.</p>
+<div class="model-grid"><article class="insight-card"><p class="eyebrow">PRESERVED LOGISTIC REGRESSION MODEL</p><h2>Explore a student outcome estimate</h2><p>The trained model uses first-semester academic performance and admission grade from a public higher-education dataset in Portugal. Enter an illustrative profile using the original dataset scales.</p>
+<?php if(!$model):?><div class="alert">The trained model is unavailable. Follow the documented training workflow before using this explorer.</div><?php else:?>
+<form class="model-form" method="post"><input type="hidden" name="csrf" value="<?=h(csrf())?>">
+<?php foreach($values as $name=>$value):?><label><?=h($name)?> <span class="muted">(<?=h($bounds[$name][0])?>?<?=h($bounds[$name][1])?>)</span><input type="number" step="any" name="feature[<?=h($name)?>]" value="<?=h($value)?>" min="<?=h($bounds[$name][0])?>" max="<?=h($bounds[$name][1])?>" required></label><?php endforeach;?>
+<button type="submit" class="btn-primary">Calculate risk estimate</button></form>
 <?php endif;?>
-<p class="hint">Source: <a href="https://archive.ics.uci.edu/dataset/697/predict+students+dropout+and+academic+success">UCI dataset 697</a> (CC BY 4.0). This external dataset represents students in Portugal and is not validated for Philippine universities. Use for an educational example only. No predictions are saved. Always involve academic staff and consider student context.</p>
-</main></body></html>
+<?php if($error):?><p class="error" role="alert" tabindex="-1"><?=h($error)?></p><?php endif;?>
+</article><div><article class="insight-card model-result <?= $prediction!==null?'prediction-result':'' ?>" <?= $prediction!==null?'role="status" tabindex="-1"':'' ?>><p class="eyebrow">MODEL OUTPUT</p><h2><?= $prediction!==null?'Calculated risk estimate':'Your estimate appears here' ?></h2>
+<?php if($prediction!==null):?><div class="kpi-value"><?=h(number_format($prediction*100,1))?>%</div><div class="risk-gauge" role="img" aria-label="Estimated dropout likelihood <?=h(number_format($prediction*100,1))?> percent"><span class="risk-marker" style="--risk:<?=h(number_format($prediction*100,2,'.',''))?>%"></span></div><strong><?=h($prediction>=.5?'Higher model-estimated dropout likelihood':'Lower model-estimated dropout likelihood')?></strong><p>Classification cutoff: 50%. This score is not an institution-calibrated probability and does not establish an individual's future.</p><?php else:?><p>Enter a profile and calculate an estimate. No predictions are saved.</p><?php endif;?></article>
+<?php if($metrics):?><article class="insight-card"><h2>Actual holdout evaluation</h2><div class="model-metrics"><?php foreach(['roc_auc'=>'ROC-AUC','accuracy'=>'Accuracy','dropout_recall'=>'Dropout recall','dropout_precision'=>'Dropout precision'] as $key=>$label):?><div><strong><?=h($metrics[$key])?></strong><span><?=h($label)?></span></div><?php endforeach;?></div><p class="hint"><?=h($metrics['test_count'])?> test records ? <?=h($metrics['split'])?></p></article><?php endif;?></div></div>
+<article class="insight-card"><h2>Dataset source and limitations</h2><p>Source: <a href="https://archive.ics.uci.edu/dataset/697/predict+students+dropout+and+academic+success">UCI Predict Students' Dropout and Academic Success, dataset 697</a> ? CC BY 4.0. The dataset contains 4,424 records from Portugal. The model has not been trained on CICS students and is not validated for Batangas State University or Philippine universities.</p><p>First-semester features cannot establish risk at admission. The model does not make decisions or save predictions. Academic staff should consider student context, other evidence, and appropriate validation before operational use.</p></article>
+<?php workspaceEnd(); ?>

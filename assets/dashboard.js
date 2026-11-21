@@ -1,20 +1,14 @@
-/* Local SVG charts: no external scripts or network connection required. */
+/* SVG analytics renderer. Values are supplied exclusively by PHP queries. */
 'use strict';
-const d = JSON.parse(document.getElementById('chartData').textContent);
-const colors=['#5965e9','#16a89a','#eba64e'];
-const escapeText=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function chart(id,content,label){const canvas=document.getElementById(id);canvas.outerHTML=`<svg viewBox="0 0 720 265" role="img" aria-label="${escapeText(label)}" style="width:100%;height:100%;font:12px system-ui;overflow:visible"><title>${escapeText(label)}</title>${content}</svg>`;}
-function empty(id){chart(id,'<text x="360" y="130" text-anchor="middle" fill="#758398">No data for the selected scope</text>','No data');}
-if(!d.periods.length) empty('trendChart');
-else {
- let svg='';
- for(let i=0;i<=4;i++){let y=210-i*45;svg+=`<path d="M48 ${y}H665" stroke="#e6edf4"/><text x="36" y="${y+4}" text-anchor="end" fill="#758398">${i*25}%</text><text x="680" y="${y+4}" fill="#758398">${i*1.25}</text>`;}
- const x=i=>48+i*617/Math.max(1,d.periods.length-1);
- [d.passRates,d.seteScores.map(v=>v===null?null:v*20)].forEach((values,k)=>{let path='';let previous=false;values.forEach((v,i)=>{if(v===null){previous=false;return;}path+=`${previous?'L':'M'}${x(i)} ${210-v*1.8} `;previous=true;});svg+=`<path d="${path}" fill="none" stroke="${colors[k]}" stroke-width="3" stroke-linejoin="round"/>`;values.forEach((v,i)=>{if(v!==null)svg+=`<circle cx="${x(i)}" cy="${210-v*1.8}" r="5" fill="${colors[k]}"><title>${escapeText(d.periods[i])}: ${k?(v/20).toFixed(2)+' / 5':v+'%'}</title></circle>`;});});
- d.periods.forEach((p,i)=>{svg+=`<text x="${x(i)}" y="233" text-anchor="middle" fill="#758398" font-size="10">${escapeText(p)}</text>`;});
- svg+='<circle cx="235" cy="257" r="4" fill="#5965e9"/><text x="247" y="261" fill="#52657c">Pass rate (%)</text><circle cx="400" cy="257" r="4" fill="#16a89a"/><text x="412" y="261" fill="#52657c">SETE average (/5)</text>';
- chart('trendChart',svg,'Semester trends: pass rate and teaching effectiveness');
-}
-function bars(id,labels,values,max,suffix){if(!labels.length){empty(id);return;}let svg='';const height=Math.min(48,185/labels.length);labels.forEach((label,i)=>{let y=24+i*75;svg+=`<text x="0" y="${y}" fill="#52657c">${escapeText(label)}</text><rect x="0" y="${y+12}" width="640" height="${height}" rx="8" fill="#f0f3fa"/><rect x="0" y="${y+12}" width="${Math.max(0,values[i]/max*640)}" height="${height}" rx="8" fill="${colors[i%3]}"><title>${escapeText(label)}: ${values[i]}${suffix}</title></rect><text x="655" y="${y+height/2+17}" fill="#14253c" font-weight="700">${values[i]}${suffix}</text>`;});chart(id,svg,labels.map((l,i)=>`${l}: ${values[i]}${suffix}`).join('; '));}
-bars('deptChart',d.departments,d.departmentScores,5,' / 5');
-bars('riskChart',d.riskDepartments,d.riskValues,Math.max(1,...d.riskValues),'');
+(() => {
+ const source=document.getElementById('chartData');if(!source)return;
+ const d=JSON.parse(source.textContent),colors=['#a3233c','#168b82','#d59936','#687dab','#b873a4'];
+ const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function chart(id,content,label,height=300){const canvas=document.getElementById(id);if(!canvas)return;canvas.outerHTML=`<svg viewBox="0 0 720 ${height}" role="img" aria-label="${esc(label)}" style="width:100%;height:100%;font:13px system-ui"><title>${esc(label)}</title>${content}</svg>`;}
+ function empty(id){chart(id,'<text x="360" y="145" text-anchor="middle" fill="#707889">No data for the selected scope</text>','No data');}
+ function line(id,labels,series){if(!document.getElementById(id))return;if(!labels.length){empty(id);return;}let svg='';const x=i=>55+i*600/Math.max(1,labels.length-1);for(let i=0;i<=4;i++){let y=215-i*45;svg+=`<path d="M55 ${y}H655" stroke="#e9eaf0"/><text x="43" y="${y+4}" text-anchor="end" fill="#707889">${i*25}%</text>`;if(series.length>1)svg+=`<text x="673" y="${y+4}" fill="#707889">${i*1.25}</text>`;}
+ series.forEach((item,k)=>{let path='',previous=false;item.values.forEach((v,i)=>{if(v===null){previous=false;return;}path+=`${previous?'L':'M'}${x(i)} ${215-v*item.scale*1.8} `;previous=true;});svg+=`<path d="${path}" fill="none" stroke="${colors[k]}" stroke-width="3" stroke-linejoin="round"/>`;item.values.forEach((v,i)=>{if(v!==null)svg+=`<circle tabindex="0" cx="${x(i)}" cy="${215-v*item.scale*1.8}" r="5" fill="${colors[k]}" aria-label="${esc(labels[i]+': '+v+item.unit)}"><title>${esc(labels[i])}: ${v}${esc(item.unit)}</title></circle>`;});svg+=`<circle cx="${100+k*300}" cy="281" r="4" fill="${colors[k]}"/><text x="${112+k*300}" y="285" fill="#526070">${esc(item.label)}</text>`;});labels.forEach((p,i)=>{svg+=`<text x="${x(i)}" y="244" text-anchor="middle" fill="#707889" font-size="11">${esc(p)}</text>`;});chart(id,svg,series.map(s=>s.label).join(' and '));}
+ function bars(id,labels,values,max,suffix){const el=document.getElementById(id);if(!el)return;if(!labels.length){empty(id);return;}let svg='';const height=Math.max(270,labels.length*72+20);el.parentElement.style.height=`${height}px`;labels.forEach((label,i)=>{const y=22+i*72;svg+=`<text x="5" y="${y}" fill="#526070">${esc(label)}</text><rect x="5" y="${y+12}" width="615" height="25" rx="6" fill="#f2f3f7"/><rect tabindex="0" x="5" y="${y+12}" width="${Math.max(0,values[i]/max*615)}" height="25" rx="6" fill="${colors[i%colors.length]}" aria-label="${esc(label+': '+values[i]+suffix)}"><title>${esc(label)}: ${values[i]}${esc(suffix)}</title></rect><text x="635" y="${y+30}" fill="#202b3b" font-weight="600">${values[i]}${esc(suffix)}</text>`;});chart(id,svg,labels.map((l,i)=>`${l}: ${values[i]}${suffix}`).join('; '),height);}
+ line('trendChart',d.periods,[{values:d.passRates,label:'Course pass rate (%)',unit:'%',scale:1},{values:d.seteScores,label:'SETE weighted mean (/5)',unit:' / 5',scale:20}]);
+ bars('deptChart',d.departments,d.departmentScores,5,' / 5');bars('riskChart',d.riskDepartments,d.riskValues,Math.max(1,...d.riskValues),'');bars('programChart',d.programs,d.programPass,100,'%');bars('subjectChart',d.subjects,d.subjectPass,100,'%');bars('gradeChart',d.gradeBands,d.gradeCounts,Math.max(1,...d.gradeCounts),'');bars('yearChart',d.yearLabels,d.yearPass,100,'%');line('responseChart',d.responsePeriods,[{values:d.responses,label:'SETE participation (%)',unit:'%',scale:1}]);line('riskTrendChart',d.periods,[{values:d.riskRates,label:'Academic records flagged (%)',unit:'%',scale:1}]);
+})();

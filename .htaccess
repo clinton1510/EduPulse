@@ -1,0 +1,5 @@
+Options -Indexes
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^(?:\.git|\.qodo|\.codex|\.browser-check|tests|config|lib|sql|views|ml)(?:/|$) - [F,L]
+</IfModule>
