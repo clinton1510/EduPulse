@@ -1,0 +1,31 @@
+{
+  "source": "https://archive.ics.uci.edu/static/public/697/predict+students+dropout+and+academic+success.zip",
+  "source_name": "UCI Predict Students' Dropout and Academic Success (ID 697)",
+  "license": "CC BY 4.0",
+  "sample_count": 4424,
+  "training_count": 3539,
+  "test_count": 885,
+  "dropout_prevalence": 0.3212,
+  "target": "Dropout vs Enrolled/Graduate",
+  "split": "Stratified 80/20, random_state=42",
+  "threshold": 0.5,
+  "roc_auc": 0.8688,
+  "accuracy": 0.8147,
+  "dropout_recall": 0.7711,
+  "dropout_precision": 0.6887,
+  "confusion_matrix_labels": [
+    "Not dropout",
+    "Dropout"
+  ],
+  "confusion_matrix": [
+    [
+      502,
+      99
+    ],
+    [
+      65,
+      219
+    ]
+  ],
+  "limitations": "External Portugal higher-education dataset; not validated for a Philippine university. Predictions are illustrative and must not automatically determine interventions."
+}

@@ -1,0 +1,30 @@
+{
+  "model_type": "standardized_logistic_regression",
+  "features": [
+    "Admission grade",
+    "Curricular units 1st sem (enrolled)",
+    "Curricular units 1st sem (approved)",
+    "Curricular units 1st sem (grade)"
+  ],
+  "means": [
+    126.98621079400961,
+    6.238202882170104,
+    4.677309974569087,
+    10.616223044324949
+  ],
+  "scales": [
+    14.552081317321454,
+    2.4332974945329693,
+    3.0573998260335498,
+    4.881311892388815
+  ],
+  "coefficients": [
+    -0.035328729758773214,
+    1.4417081651690857,
+    -2.280328326141868,
+    -0.28446832184052934
+  ],
+  "intercept": -0.1386767611822448,
+  "threshold": 0.5,
+  "provenance": "UCI dataset 697; training script ml/train.py; see model/metrics.json"
+}
